@@ -19,6 +19,9 @@ ObjectReference Property skinningContainer auto
 ObjectReference Property harvestContainer auto
 ObjectReference Property butcherContainer auto
 
+Idle Property idleSkinning Auto
+Idle Property idleStop Auto
+
 ObjectReference previousReference = NONE
 int progressMeter = 0
 
@@ -143,14 +146,14 @@ int Function ApplyFilter(ObjectReference akTargetRef, string[] filter, int typeF
 
 		; If the type matches then add the item
 		if(typeFilter == item.GetType())
-			JArray.addInt(result, i)				
+			JArray.addForm(result, item)		
 
 		; Otherwise run a loop that checks if the item contains any of the phrases or words in the string filter			
 		else
 			int u = 0 	
 			While (u < filter.Length)
 				if(StringUtil.Find(item.GetName(), filter[u]) != -1)
-					JArray.addInt(result, i)
+					JArray.addForm(result, item)
 				endif
 
 				u += 1
@@ -193,7 +196,7 @@ Function MoveToContainer(ObjectReference akTargetRef, int itemList, ObjectRefere
 
 	int index = 0
 	While (index < JArray.count(itemList))
-		Form item = akTargetRef.GetNthForm(JArray.getInt(itemList, index))
+		Form item = JArray.getForm(itemList, index)
 		akTargetRef.RemoveItem(item, 1000, true, newContainer)
 
 		index += 1
@@ -210,8 +213,12 @@ Function ToggleControls(bool toggle)
 
 	if(!toggle)
 		Game.DisablePlayerControls(false, false, true, true, false, false, true, false)
+		Game.ForceThirdPerson()		
+		playerRef.PlayIdle(idleSkinning)	
 	else
-		Game.EnablePlayerControls()
+		playerRef.PlayIdle(idleStop)
+		Utility.Wait(0.2)
+		Game.EnablePlayerControls()		
 	endif
 	;Toggles Players ability to control their character
 
@@ -226,6 +233,9 @@ bool Function ActionTimer(float time)
 		Utility.Wait(increment)
 		i += increment
 		UpdateWidget(true, (i / time * 100) as int)
+		;if((i * 10) as int % 15 == 0)
+			;playerRef.PlayIdle(idleSkinning)
+		;EndIf
 	EndWhile
 	
 	if(i < time)
