@@ -20,6 +20,7 @@
         <Import>@ModsFolder\Creation Kit - Source\Scripts\Source</Import>
         <Import>@ModsFolder\JContainers\Scripts\Source</Import>
         <Import>@ModsFolder\SkyUI - Source\Scripts\Source</Import>
+        <Import>@ModsFolder\powerofthree's Papyrus Extender\Source\scripts</Import>
     </Imports>
     <Folders>
         <!-- Relative path to folder containing .psc Papyrus source code files for this project -->
