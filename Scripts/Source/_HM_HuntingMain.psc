@@ -222,7 +222,6 @@ Function ToggleControls(bool toggle)
 
 	if(!toggle)
 		Game.DisablePlayerControls(false, false, true, true, false, false, true, false)
-		Game.ForceThirdPerson()		
 		player.PlayIdle(idleSkinning)	
 	else
 		player.PlayIdle(idleStop)

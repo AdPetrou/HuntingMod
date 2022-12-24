@@ -1,10 +1,9 @@
 -----------
 Thanks
 -----------
-SkyUI Team - for being genuises
+Bethesda, The SKSE Team, The SkyUI Team
 Unuroboros (hunterborn) - obviously
-Mrowrpurr - Very good tutorials
+MrowrPurr - Very good tutorials
 Silvericed - JContainers is brilliant
-PowerOfThree - SPID and Papyrus Extender which make this possible
-Jayserpa - He didn't help with this mod I just like him
+PowerOfThree - SPID and Papyrus Extender
 IWantWidgets, neat mod

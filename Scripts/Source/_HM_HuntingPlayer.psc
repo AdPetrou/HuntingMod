@@ -1,5 +1,6 @@
 Scriptname _HM_HuntingPlayer extends ReferenceAlias  
 
+GlobalVariable Property _HM_ToggleMod Auto
 Perk Property huntingRestriction Auto
 
 Event OnInit()
@@ -16,6 +17,8 @@ Event OnUpdate()
 		Return
 	EndIf
 
-    Game.GetPlayer().AddPerk(huntingRestriction)
-    
+    if(_HM_ToggleMod.GetValue() == 1)
+        Game.GetPlayer().AddPerk(huntingRestriction)
+    endif
+
 EndEvent
