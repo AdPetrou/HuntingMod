@@ -2,8 +2,6 @@ Scriptname _HM_HuntingMain extends Quest
 
 import PO3_SKSEFunctions
 
-Actor Property playerRef Auto
-Perk Property huntingPerk Auto
 iWant_Widgets Property widgetManager Auto
 
 MiscObject Property keyDressed Auto
@@ -39,8 +37,6 @@ Event OnUpdate()
 		Return
 	EndIf
 
-	playerRef.AddPerk(huntingPerk)
-
 	Int xPos = Utility.GetIniInt("iSize W:Display") / 3
 	Int yPos = Utility.GetIniInt("iSize H:Display") / 3 + 40
 	progressMeter = widgetManager.loadMeter(xPos, yPos, true)
@@ -50,6 +46,17 @@ Event OnUpdate()
 	UpdateWidget(false, 0)
 	
 EndEvent
+
+Function ActivateCarcassFilterOnly(ObjectReference akTargetRef, Actor akActor)
+
+	if(previousReference != akTargetRef)
+		FilterItems(akTargetRef, akActor)
+		previousReference = akTargetRef
+	endif
+
+	akTargetRef.Activate(akActor)
+
+EndFunction
 
 Function ActivateCarcass(ObjectReference akTargetRef, Actor akActor)
 
@@ -211,12 +218,14 @@ EndFunction
 
 Function ToggleControls(bool toggle)
 
+	Actor player = Game.GetPlayer()
+
 	if(!toggle)
 		Game.DisablePlayerControls(false, false, true, true, false, false, true, false)
 		Game.ForceThirdPerson()		
-		playerRef.PlayIdle(idleSkinning)	
+		player.PlayIdle(idleSkinning)	
 	else
-		playerRef.PlayIdle(idleStop)
+		player.PlayIdle(idleStop)
 		Utility.Wait(0.2)
 		Game.EnablePlayerControls()		
 	endif
@@ -233,9 +242,6 @@ bool Function ActionTimer(float time)
 		Utility.Wait(increment)
 		i += increment
 		UpdateWidget(true, (i / time * 100) as int)
-		;if((i * 10) as int % 15 == 0)
-			;playerRef.PlayIdle(idleSkinning)
-		;EndIf
 	EndWhile
 	
 	if(i < time)
