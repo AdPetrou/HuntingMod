@@ -5,7 +5,7 @@ Scriptname PRKF_HM_HuntingFreshCarcass Extends Perk Hidden
 ;BEGIN FRAGMENT Fragment_19
 Function Fragment_19(ObjectReference akTargetRef, Actor akActor)
 ;BEGIN CODE
-(mainScript as _HM_HuntingMain).ActivateCarcass(akTargetRef, akActor)
+(mainScript as _HM_HuntingMain).CarcassActivate(akTargetRef, akActor)
 ;END CODE
 EndFunction
 ;END FRAGMENT

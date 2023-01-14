@@ -2,6 +2,8 @@ Scriptname _HM_HuntingMain extends Quest
 
 import PO3_SKSEFunctions
 
+_HM_HuntingSkill Property huntingSkills Auto
+_HM_RecipeAdjuster Property huntingRecipes Auto
 iWant_Widgets Property widgetManager Auto
 
 MiscObject Property keyDressed Auto
@@ -19,6 +21,8 @@ ObjectReference Property butcherContainer auto
 
 Idle Property idleSkinning Auto
 Idle Property idleStop Auto
+
+bool returnFP = false
 
 ObjectReference previousReference = NONE
 int progressMeter = 0
@@ -47,7 +51,7 @@ Event OnUpdate()
 	
 EndEvent
 
-Function ActivateCarcassFilterOnly(ObjectReference akTargetRef, Actor akActor)
+Function CarcassActivateFilterOnly(ObjectReference akTargetRef, Actor akActor)
 
 	if(previousReference != akTargetRef)
 		FilterItems(akTargetRef, akActor)
@@ -57,48 +61,66 @@ Function ActivateCarcassFilterOnly(ObjectReference akTargetRef, Actor akActor)
 	akTargetRef.Activate(akActor)
 
 EndFunction
-
-Function ActivateCarcass(ObjectReference akTargetRef, Actor akActor)
-
-	ToggleControls(false)
-
+Function CarcassActivate(ObjectReference akTargetRef, Actor akActor)
 	; In case the player decides to switch to skinning a different animal before the previous is finished
 	if(previousReference != akTargetRef)
 		FilterItems(akTargetRef, akActor)
 		previousReference = akTargetRef
 	endif
 
-	int i = 0 
-	int count = akTargetRef.GetNumItems()
-	bool loop = true
-	While (loop)
+	float animalWeight = (akTargetRef as Actor).GetMass() / 100
+	int overallSkill = huntingSkills._HM_SkillHunting
 
-		if(i >= count)
-			loop = false
-		endif
+	if(animalWeight * 10 - 5 > overallSkill)
+		akTargetRef.Activate(akActor)
+		return
+	endif
+	
+	ToggleControls(false)
 
-		If (akTargetRef.GetNthForm(i) == keyButchered)
-			akTargetRef.Delete()
-			loop = false
-		elseIf (akTargetRef.GetNthForm(i) == keyHarvested)
-			ButcherCarcass(akTargetRef, akActor, 10.0)
-			loop = false
-		elseIf (akTargetRef.GetNthForm(i) == keySkinned)
-			HarvestCarcass(akTargetRef, akActor, 2.0)
-			loop = false	
-		elseIf (akTargetRef.GetNthForm(i) == keyDressed)
-			SkinCarcass(akTargetRef, akActor, 4.0)
-			loop = false			
-		EndIf
+	bool isDressed = false
+	GlobalVariable skill = NONE
+	Form itemAdd = NONE
+	Form itemRemove = NONE
+	ObjectReference targetContainer = NONE
+	float time = huntingSkills.GetTotalSkillTime(0.5) * animalWeight
 
-		if(loop == true)
-			i += 1
-		endif
+	if (akTargetRef.GetItemCount(keyHarvested) > 0)
 
-	EndWhile
+		skill = huntingSkills._HM_SkillButchering
+		targetContainer = butcherContainer
+		itemAdd = keyButchered
+		itemRemove = keyHarvested
 
-	if(i >= count)
-		DressCarcass(akTargetRef, akActor, 3.0)	
+		time = huntingSkills.GetSkillTime(skill, 2.5) * animalWeight
+		isDressed = true
+
+	elseIf (akTargetRef.GetItemCount(keySkinned) > 0)
+
+		skill = huntingSkills._HM_SkillHarvesting
+		targetContainer = harvestContainer
+		itemAdd = keyHarvested
+		itemRemove = keySkinned
+
+		time = huntingSkills.GetSkillTime(skill, 0.75) * animalWeight
+		isDressed = true
+		
+	elseIf (akTargetRef.GetItemCount(keyDressed) > 0)
+
+		skill = huntingSkills._HM_SkillSkinning
+		targetContainer = skinningContainer
+		itemAdd = keySkinned
+		itemRemove = keyDressed
+
+		time = huntingSkills.GetSkillTime(skill, 1) * animalWeight
+		isDressed = true
+
+	EndIf
+
+	if(!isDressed)
+		CarcassDress(akTargetRef, akActor, time)	
+	else
+		CarcassAction(akTargetRef, akActor, time, targetContainer, itemRemove, itemAdd, skill)
 	endif
 
 	UpdateWidget(false, 0)
@@ -109,12 +131,12 @@ EndFunction
 Function FilterItems(ObjectReference akTargetRef, Actor akActor)
 
 	; If the creature was not fully harvested then the container will put the items back into the creatures inventory
-	ResetInventory(skinningContainer)
-	ResetInventory(harvestContainer)
-	ResetInventory(butcherContainer)
+	ResetCondition(skinningContainer)
+	ResetCondition(harvestContainer)
+	ResetCondition(butcherContainer)
 
 	; Return a JContainer array (basically a list) with items seperated
-	int skinningItems = ApplyFilter(akTargetRef, skinningFilter)
+	int skinningItems = ApplyFilter(akTargetRef, skinningFilter, -1)
 	int harvestItems = ApplyFilter(akTargetRef, harvestFilter, 30)
 	int butcherItems = ApplyFilter(akTargetRef, butcherFilter, 46)
 
@@ -123,24 +145,38 @@ Function FilterItems(ObjectReference akTargetRef, Actor akActor)
 	MoveToContainer(akTargetRef, harvestItems, harvestContainer)
 	MoveToContainer(akTargetRef, butcherItems, butcherContainer)
 
-	; Add levelled list items on condition, 
+	; Add levelled list items, 
 	; Filter needs to be called for items that aren't part of the filter or are quest items
+	float targetMass = akTargetRef.GetMass() / 100
+
+	skinningContainer.RemoveAllItems()
 	if(skinningContainer.GetNumItems() == 0)
-		AddDeathItems(akTargetRef, skinningFilter, 1, skinningContainer)
+		huntingRecipes.AddSkillItems\
+		(\
+			FilterDeathItems(akTargetRef, skinningFilter),\
+			huntingSkills.GetSkillLevel(huntingSkills._HM_SkillSkinning),\
+			skinningContainer, targetMass, true\
+		)
 	endif
 
+	huntingRecipes.AddSkillItems\
+	(\
+		FilterDeathItems(akTargetRef, harvestFilter, 30),\
+		huntingSkills.GetSkillLevel(huntingSkills._HM_SkillHarvesting),\
+		harvestContainer, targetMass\
+	)
+
+	huntingRecipes.AddSkillItems\
+	(\
+		FilterDeathItems(akTargetRef, butcherFilter, 46),\
+		huntingSkills.GetSkillLevel(huntingSkills._HM_SkillButchering),\
+		butcherContainer, targetMass\
+	)
+
 EndFunction
-
-Function ResetInventory(ObjectReference containerRef)
-
-	if(containerRef != NONE && containerRef.GetNumItems() > 0)
-		containerRef.RemoveAllItems(previousReference, false, true)
-	endif
-
-EndFunction
-
 ; Returns a JArray from JContainers, stored as an int because of whatever voodoo magic he did
-int Function ApplyFilter(ObjectReference akTargetRef, string[] filter, int typeFilter = -1)
+int Function ApplyFilter(ObjectReference akTargetRef, string[] filter, \ 
+int typeFilter = -1)
 
 	; Initialise array 
 	int result = JArray.object()
@@ -153,7 +189,7 @@ int Function ApplyFilter(ObjectReference akTargetRef, string[] filter, int typeF
 
 		; If the type matches then add the item
 		if(typeFilter == item.GetType())
-			JArray.addForm(result, item)		
+			JArray.addForm(result, item)
 
 		; Otherwise run a loop that checks if the item contains any of the phrases or words in the string filter			
 		else
@@ -161,41 +197,55 @@ int Function ApplyFilter(ObjectReference akTargetRef, string[] filter, int typeF
 			While (u < filter.Length)
 				if(StringUtil.Find(item.GetName(), filter[u]) != -1)
 					JArray.addForm(result, item)
-				endif
 
+				endif
 				u += 1
 			EndWhile
 		endif
-
 		i += 1
 	EndWhile
 
 	return result
 
 EndFunction
-
-Function AddDeathItems(ObjectReference akTargetRef, string[] filter, int amount, ObjectReference addTo)
+int Function FilterDeathItems(ObjectReference akTargetRef, string[] filter, int typeFilter = -1)
 	; Get Death levelled list, function from papyrus extender
 	LeveledItem list = GetDeathItem((akTargetRef as Actor).GetActorBase())
+	int result = JArray.object()
 
 	; This works like the Filter above but instead adds items from the levelled list to the containers
 	; I can control the quantity of items directly from this
 	int i = 0
 	While (i < list.GetNumForms())
 
-		Form item = list.GetNthForm(i)
+		Form item = list.GetNthForm(i)	
 
-		int u = 0 	
-		While (u < filter.Length)
-			If (StringUtil.Find(item.GetName(), filter[u]) != -1)
-				addTo.AddItem(item, amount, true)
-			EndIf
-			
-			u += 1
-		EndWhile
+		if(typeFilter == item.GetType())
+			JArray.addForm(result, item)
 
+		else
+
+			int u = 0 	
+			While (u < filter.Length)
+				If (StringUtil.Find(item.GetName(), filter[u]) != -1)
+					JArray.addForm(result, item)
+
+				EndIf			
+				u += 1
+			EndWhile
+
+		endif
 		i += 1
 	EndWhile
+
+	return result
+EndFunction
+
+Function ResetCondition(ObjectReference containerRef)
+
+	if(containerRef != NONE && containerRef.GetNumItems() > 0)
+		containerRef.RemoveAllItems(previousReference, false, true)
+	endif
 
 EndFunction
 
@@ -204,7 +254,7 @@ Function MoveToContainer(ObjectReference akTargetRef, int itemList, ObjectRefere
 	int index = 0
 	While (index < JArray.count(itemList))
 		Form item = JArray.getForm(itemList, index)
-		akTargetRef.RemoveItem(item, 1000, true, newContainer)
+		akTargetRef.RemoveItem(item, akTargetRef.GetItemCount(item), true, newContainer)
 
 		index += 1
 	EndWhile
@@ -222,11 +272,19 @@ Function ToggleControls(bool toggle)
 
 	if(!toggle)
 		Game.DisablePlayerControls(false, false, true, true, false, false, true, false)
-		player.PlayIdle(idleSkinning)	
+		player.PlayIdle(idleSkinning)
+		if(Game.GetCameraState() == 0)
+			returnFP = true
+			Game.ForceThirdPerson()
+		endif
 	else
 		player.PlayIdle(idleStop)
 		Utility.Wait(0.2)
-		Game.EnablePlayerControls()		
+		Game.EnablePlayerControls()	
+		if(returnFP)
+			returnFP = false
+			Game.ForceFirstPerson()
+		endif	
 	endif
 	;Toggles Players ability to control their character
 
@@ -256,7 +314,8 @@ Function AddItemsFromContainer(ObjectReference targetContainer, Actor akActor)
 	int i = 0
 	int count = targetContainer.GetNumItems()
 	While (i < count)
-		akActor.AddItem(targetContainer.GetNthForm(i))
+		Form item = targetContainer.GetNthForm(i)
+		akActor.AddItem(item, targetContainer.GetItemCount(item))
 		i += 1
 	EndWhile
 
@@ -264,7 +323,7 @@ Function AddItemsFromContainer(ObjectReference targetContainer, Actor akActor)
 
 EndFunction
 
-Function DressCarcass(ObjectReference akTargetRef, Actor akActor, float time)
+Function CarcassDress(ObjectReference akTargetRef, Actor akActor, float time)
 
 	if(ActionTimer(time))
 		akTargetRef.Activate(akActor)
@@ -273,37 +332,15 @@ Function DressCarcass(ObjectReference akTargetRef, Actor akActor, float time)
 
 EndFunction
 
-Function SkinCarcass(ObjectReference akTargetRef, Actor akActor, float time)
+Function CarcassAction(ObjectReference akTargetRef, Actor akActor, float time, ObjectReference targetContainer, \
+Form keyRemove = NONE, Form keyAdd = NONE, GlobalVariable thisSkill = NONE)
 
 	if(ActionTimer(time))
-		akTargetRef.RemoveItem(keyDressed)		
+		akTargetRef.RemoveItem(keyRemove)		
 
-		AddItemsFromContainer(skinningContainer, akActor)
-		akTargetRef.AddItem(keySkinned)
+		AddItemsFromContainer(targetContainer, akActor)
+		akTargetRef.AddItem(keyAdd)
+
+		thisSkill.SetValue(thisSkill.GetValue() + 1)
 	endif
-	
-EndFunction
-
-Function HarvestCarcass(ObjectReference akTargetRef, Actor akActor, float time)
-
-	if(ActionTimer(time))
-		akTargetRef.RemoveItem(keySkinned)
-
-		AddItemsFromContainer(harvestContainer, akActor)
-		akTargetRef.AddItem(keyHarvested)
-	endif
-
-EndFunction
-
-Function ButcherCarcass(ObjectReference akTargetRef, Actor akActor, float time)
-
-	if(ActionTimer(time))
-		akTargetRef.RemoveItem(keyHarvested)
-
-		AddItemsFromContainer(butcherContainer, akActor)
-		akTargetRef.AddItem(keyButchered)
-
-		akTargetRef.Delete()
-	endif
-
 EndFunction

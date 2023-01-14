@@ -5,7 +5,7 @@ Scriptname PRKF__HM_CantHunt Extends Perk Hidden
 ;BEGIN FRAGMENT Fragment_19
 Function Fragment_19(ObjectReference akTargetRef, Actor akActor)
 ;BEGIN CODE
-mainScript.ActivateCarcassFilterOnly(akTargetRef, akActor)
+mainScript.CarcassActivateFilterOnly(akTargetRef, akActor)
 ;END CODE
 EndFunction
 ;END FRAGMENT

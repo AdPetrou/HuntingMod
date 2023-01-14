@@ -1,0 +1,39 @@
+CowHide
+Cow Hide (Average)
+30
+
+CowHidePathetic
+Cow Hide (Pathetic)   
+10
+
+CowHidePoor
+Cow Hide (Poor)
+20
+
+CowHideDecent
+Cow Hide (Decent)
+50
+
+CowHideGood
+Cow Hide (Good)
+70
+
+CowHideGreat
+Cow Hide (Great)
+90
+
+CowHideImpressive
+Cow Hide (Impressive)
+130
+
+CowHideExquisite
+Cow Hide (Exquisite)
+180
+
+CowHideFlawless
+Cow Hide (Flawless)
+280
+
+CowHideLegendary
+Cow Hide (Legendary)
+500
